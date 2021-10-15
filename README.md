@@ -7,3 +7,7 @@ Most network engineers are familiar with 'ping' and 'traceroute' utilities. Howe
 Some open source implementations (like [this](https://github.com/vnrick/dot1ag-utils) project) exist, but they do not support VXLAN overlay services.
 
 This project implements VXLAN L2 OAM tools (ping, tracelink) for overlay networks, using eBPF XDP filters on SR Linux
+
+## Sources used
+
+https://dev.to/satrobit/absolute-beginner-s-guide-to-bcc-xdp-and-ebpf-47oi - sample XDP program
