@@ -70,6 +70,9 @@ int vxlan_filter_cfm(struct xdp_md *ctx)
 {
     void *data = (void *)(long)ctx->data;
     void *data_end = (void *)(long)ctx->data_end;
+    bpf_trace_printk( "vxlan_filter_cfm len=%u ingress_ifindex=%d\n",
+                      data_end-data, ctx->ingress_ifindex );
+
     struct ethhdr *eth = data;
 
     if ((void *)eth + sizeof(*eth) <= data_end) {
