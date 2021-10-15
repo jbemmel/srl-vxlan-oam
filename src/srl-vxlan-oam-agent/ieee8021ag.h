@@ -2,17 +2,17 @@
  * Copyright (c) 2011
  * Author: Ronald van der Pol
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  *    1. Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *    2. Redistributions in binary form must reproduce the above copyright
  *       notice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -35,16 +35,18 @@
  * CFM PDU Encapsulation with type/length media
  */
 
-#include <stdint.h>
-#include <netinet/in.h>
-#include <sys/types.h>
-#ifdef HAVE_NET_ETHERNET_H
-#include <net/ethernet.h>
-#endif
-#ifdef HAVE_NET_IF_ETHER_H
-#include <net/if.h>
-#include <net/if_ether.h>
-#endif
+// #include <stdint.h>
+// #include <netinet/in.h>
+// #include <sys/types.h>
+//#ifdef HAVE_NET_ETHERNET_H
+//#include <net/ethernet.h>
+//#endif
+//#ifdef HAVE_NET_IF_ETHER_H
+//#include <net/if.h>
+//#include <net/if_ether.h>
+//#endif
+
+#include <linux/if_ether.h>
 
 /* compare timevals a to b using the comparison operator given in cmp */
 #define cfm_timevalcmp(a, b, cmp)		\
@@ -95,8 +97,8 @@ void
 eaprint(uint8_t *ea);
 
 struct cfmencap {
-	uint8_t dstmac[ETHER_ADDR_LEN];
-	uint8_t srcmac[ETHER_ADDR_LEN];
+	uint8_t dstmac[ETH_ALEN];
+	uint8_t srcmac[ETH_ALEN];
 	uint16_t tpid;
 	uint16_t tci;
 	uint16_t ethertype;
@@ -209,13 +211,13 @@ struct cfm_lbm {
 #define GET_MD_LEVEL(s)		(((s)->octet1.md_level >> 5) & 0x07)
 
 /* positions of headers in Ethernet frame */
-#define IS_TAGGED(s)		(*(s + ETHER_ADDR_LEN * 2) \
+#define IS_TAGGED(s)		(*(s + ETH_ALEN * 2) \
 					== htons(ETYPE_8021Q))
 #define CFMHDR(s)		(struct cfmhdr *) \
 				(IS_TAGGED(s) ? \
-					((s) + ETHER_HDR_LEN + \
+					((s) + ETH_HLEN + \
 					ETHER_DOT1Q_LEN) : \
-					((s) + ETHER_HDR_LEN))
+					((s) + ETH_HLEN))
 #define CFMHDR_U8(s,x)          ((uint8_t *)CFMHDR((s)) + (x))
 
 #define POS_CFM_LTM(s)		(struct cfm_ltm *) \
@@ -259,8 +261,8 @@ cfm_matchlbr(uint8_t *buf, uint8_t *dst, uint8_t *src, uint16_t vlan,
 struct cfm_ltm {
 	uint32_t transID;
 	uint8_t	 ttl;
-	uint8_t orig_mac[ETHER_ADDR_LEN];
-	uint8_t target_mac[ETHER_ADDR_LEN];
+	uint8_t orig_mac[ETH_ALEN];
+	uint8_t target_mac[ETH_ALEN];
 } __attribute__ ((__packed__));
 
 #define ETHER_CFM_GROUP		"01:80:C2:00:00:30"
@@ -360,7 +362,7 @@ struct cfm_cc {
 struct rMEP {
 	int active;
 	int CCMreceivedEqual;
-	uint8_t recvdMacAddress[ETHER_ADDR_LEN];
+	uint8_t recvdMacAddress[ETH_ALEN];
 	int recvdRDI;
 	int rMEPCCMdefect;
 	struct timeval rMEPwhile;

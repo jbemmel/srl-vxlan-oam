@@ -11,7 +11,7 @@ device = "e1-1"
 # #include "xdp-ieee-802.1ag-filter.c"
 # """)
 bpf = BPF(src_file="xdp-ieee-802.1ag-filter.c")
-vxlan_filter_cfm = b.load_func("vxlan_filter_cfm", BPF.XDP)
+vxlan_filter_cfm = bpf.load_func("vxlan_filter_cfm", BPF.XDP)
 
 with netns.NetNS(nsname="srbase"):
   bpf.attach_xdp(device, vxlan_filter_cfm, 0)
