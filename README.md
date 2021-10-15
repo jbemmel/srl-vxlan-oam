@@ -11,3 +11,4 @@ This project implements VXLAN L2 OAM tools (ping, tracelink) for overlay network
 ## Sources used
 
 https://dev.to/satrobit/absolute-beginner-s-guide-to-bcc-xdp-and-ebpf-47oi - sample XDP program
+https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/samples/bpf/xdp_ddos01_blacklist_kern.c - sample DDoS program
