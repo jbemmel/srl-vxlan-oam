@@ -16,6 +16,13 @@ static void swap_src_dst_mac(void *data)
 	p[3] = dst[0]; p[4] = dst[1];	p[5] = dst[2];
 }
 
+static void copy_src_mac_to_dest(void *data)
+{
+	unsigned short *p = data;
+
+	p[0] = p[3]; p[1] = p[4]; p[2] = p[5];
+}
+
 static void swap_src_dst_ip(struct iphdr *ip)
 {
   // Note: Swapping does not alter the checksum
@@ -35,8 +42,13 @@ static int _process_cfm(struct ethhdr *outer_eth, struct ethhdr *inner_eth, stru
 
      case CFM_LBM:
        // cfm_send_lbr(ifname, (uint8_t *) data, (int) header->caplen);
-       // TODO can be sent to multicast group
-       // if ( ETHER_IS_CCM_GROUP(outer_eth->dst) ) {
+       // Can be sent to multicast group -> replace with virtual unique MAC
+       if ( ETHER_IS_CCM_GROUP(inner_eth->h_dest) ) {
+          copy_src_mac_to_dest( inner_eth );
+          outer_eth->h_source[5] ^= inner_eth->h_source[5] // XOR last byte
+       } else {
+          swap_src_dst_mac( inner_eth );
+       }
        swap_src_dst_mac( outer_eth );
        swap_src_dst_ip( ip );
        cfmhdr->opcode = CFM_LBR;
@@ -64,7 +76,7 @@ int vxlan_filter_cfm(struct xdp_md *ctx)
     if ((void *)eth + sizeof(*eth) <= data_end) {
 
        // Drop frames sent from multicast
-       if (ETHER_IS_MCAST(outer_eth->src)) return XDP_DROP;
+       if (ETHER_IS_MCAST(outer_eth->h_source)) return XDP_DROP;
 
        // TODO if (eth_type == htons(ETH_P_8021Q) || eth_type == htons(ETH_P_8021AD)) {
        if (eth->type == __constant_htons(ETH_P_IP)) {

@@ -6,6 +6,10 @@ import netns
 import time
 
 device = "e1-1"
+# bpf = BPF(text=f"""
+# // Can include params like this: #define SRC_MAC {MAC}
+# #include "xdp-ieee-802.1ag-filter.c"
+# """)
 bpf = BPF(src_file="xdp-ieee-802.1ag-filter.c")
 vxlan_filter_cfm = b.load_func("vxlan_filter_cfm", BPF.XDP)
 
