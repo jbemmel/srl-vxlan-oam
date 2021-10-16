@@ -1,5 +1,5 @@
 # srl-vxlan-oam
-Operations, Administration, and Maintenance (OAM) for VXLAN L2 services on SR Linux based on [IEEE 802.1ag](https://en.wikipedia.org/wiki/IEEE_802.1ag)
+Operations, Administration, and Maintenance (OAM) for VXLAN L2 services on SR Linux conceptually based on [IEEE 802.1ag](https://en.wikipedia.org/wiki/IEEE_802.1ag)
 
 # Introduction
 Most network engineers are familiar with utilities such as 'ping' and 'traceroute'. However, these tools are only applicable to routed networks like the Internet, and require each endpoint to have an IP address. For operators or infrastructure teams offering L2 overlay services such as EVPN VXLAN based overlays, this may pose a problem.
