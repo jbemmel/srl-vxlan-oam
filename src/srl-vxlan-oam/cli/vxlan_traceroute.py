@@ -40,8 +40,8 @@ class Plugin(ToolsPlugin):
 
     # Helper function to get arguments and help strings for this plugin command
     def _get_syntax(self,state):
-        syntax = Syntax("vxlan-traceroute", help="Traces paths to other VXLAN VTEPs in a given L2 overlay service")
-        syntax.add_named_argument('mac-vrf', default="*", help="target mac-vrf used to lookup the destination VTEPs",
+        syntax = Syntax("vxlan-traceroute", help="Traces paths to other VXLAN VTEPs, globally or for a given L2 overlay service (mac-vrf)")
+        syntax.add_named_argument('mac-vrf', default="*", help="target mac-vrf used to lookup the destination VTEPs, default all known VTEPs",
           suggestions=KeyCompleter(path='/network-instance[name=*]')) # Cannot select type=mac-vrf only?
 
         # Dont allow specific VNI directly, we need to know service context with VTEPs
