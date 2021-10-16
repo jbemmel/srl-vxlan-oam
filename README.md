@@ -10,7 +10,7 @@ However, from an operational perspective it can be useful to maintain a clear se
 * The L2 Ethernet layer assigns a unique MAC address to each endpoint within a broadcast domain and performs packet forwarding (using point-to-point unicast or point-to-multipoint multicast/broadcast)
 * The L3 IP layer deals with IP addresses, subnetting and routing (determining the next hop link and target MAC address, based on the destination IP)
 
-By leaving the assignment and management of IPs as an application level issue that is out of scope, the network team can focus on the basics: L2 reachability and forwarding paths
+By leaving the assignment and management of IPs as an application level issue that is out of scope, the network team can focus on the basics: L2 reachability and forwarding paths. These OAM tools only deal with L2 MAC addresses out of principle, allowing the users/customers of the network to use whatever IP scheme they concocted (with however many configuration mistakes they make)
 
 ## Implementation considerations for physical hardware devices
 Datacenter fabrics are built using physical devices, not virtual ones. These appliances have dedicated chips to optimize data plane packet processing, handling most packets in hardware (as opposed to software running on a generic CPU). There is only a small, specific (hardcoded) set of protocols that (can) get forwarded to the generic CPU:
