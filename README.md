@@ -19,9 +19,9 @@ Datacenter fabrics are built using physical devices, not virtual ones. These app
 
 For overlay services, most VXLAN packets are handled fully in hardware, either in dedicated logic (on EVPN leaf nodes) or as generic IP/UDP packets (at spines or other routers). In order to implement custom OAM tooling for VXLAN L2 services, this prototype application uses *custom ARP packets* using the Experimental opcodes 24 and 25 as defined in [RFC5494](https://datatracker.ietf.org/doc/html/rfc5494); because these are ARP packets, the ASIC on physical hardware is expected to always forward them to the general CPU for processing.
 
-Some open source implementations (like [this](https://github.com/vnrick/dot1ag-utils) project) exist, but they do not support VXLAN overlay services.
+For this reason, this prototype does not adhere to the IEEE 802.1ag wire format. Some open source implementations (like [this](https://github.com/vnrick/dot1ag-utils) project) exist, but they do not support VXLAN overlay services - and even if they did, real ASICs would likely drop the packets.
 
-This project implements VXLAN L2 OAM tools (ping, tracelink) for overlay networks, using eBPF XDP filters on SR Linux
+This project implements VXLAN L2 OAM tools (ping, tracelink) for overlay networks, using eBPF XDP filters to process custom ARP and ARP-in-VXLAN packets on SR Linux.
 
 ## Sources used
 
