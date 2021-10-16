@@ -12,7 +12,12 @@ However, from an operational perspective it can be useful to maintain a clear se
 
 By leaving the assignment and management of IPs as an application level issue that is out of scope, the network team can focus on the basics: L2 reachability and forwarding paths
 
-## Implementation on physical hardware
+## Implementation considerations for physical hardware devices
+Datacenter fabrics are built using physical devices, not virtual ones. These appliances have dedicated chips to optimize data plane packet processing, handling most packets in hardware (as opposed to software running on a generic CPU). There is only a small, specific (hardcoded) set of protocols that (can) get forwarded to the generic CPU:
+* Control plane protocols like BGP/OSPF/ISIS
+* Address management protocols like ARP/ND, DHCP
+
+For overlay services, most VXLAN packets are handled fully in hardware, either in dedicated logic (on EVPN leaf nodes) or as generic IP/UDP packets (at spines or other routers). In order to implement custom OAM tooling for VXLAN L2 services, this prototype application uses *custom ARP packets* using the Experimental opcodes 24 and 25 as defined in [RFC5494](https://datatracker.ietf.org/doc/html/rfc5494); because these are ARP packets, the ASIC on physical hardware is expected to always forward them to the general CPU for processing.
 
 Some open source implementations (like [this](https://github.com/vnrick/dot1ag-utils) project) exist, but they do not support VXLAN overlay services.
 
