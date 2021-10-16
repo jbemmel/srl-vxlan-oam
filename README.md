@@ -23,6 +23,22 @@ For this reason, this prototype does not strictly adhere to the IEEE 802.1ag wir
 
 In summary: This project implements VXLAN L2 OAM tools (ping, tracelink) for overlay networks, using eBPF XDP filters to process/craft custom ICMP packets on SR Linux.
 
+# Traceroute for VXLAN overlays
+Out of the box, all Linux systems - including SR Linux - support a 'traceroute' command:
+```
+A:leaf-3-1.1.0.3# traceroute 1.1.0.4 network-instance default                                                                                                                                                      
+Using network instance default
+traceroute to 1.1.0.4 (1.1.0.4), 30 hops max, 60 byte packets
+ 1  192.168.127.10 (192.168.127.10)  11.225 ms * *
+ 2  192.168.127.0 (192.168.127.0)  10.656 ms * *
+ 3  192.168.127.13 (192.168.127.13)  9.626 ms * *
+ 4  1.1.0.4 (1.1.0.4)  14.249 ms  14.169 ms  14.081 ms
+```
+In this example, the interface IPs for the local leaf, the spine, and the destination leaf are shown, as well as the destination VTEP loopback IP.
+
+## Calling all VTEPs
+As a first step, we can automate the initiation of a 'traceroute' towards all VTEPs in a particular VXLAN service.
+
 ## Sources used
 
 https://dev.to/satrobit/absolute-beginner-s-guide-to-bcc-xdp-and-ebpf-47oi - sample XDP program
