@@ -100,18 +100,25 @@ with netns.NetNS(nsname="srbase"):
          # ans.summary( lambda s,r : print( r.show(dump=True) ) )
          ans.summary( lambda s,r : print( f"sent={s.sent_time} t={s.time} rx={r.time} rtt={(r.time - s.sent_time) * 1000 :.2f}ms" ) )
 
-     next_hops = [ (r[IP].src, (r.time - s.sent_time)) for s,r in ans ]
+     next_hops = {}
+     reached = False
+     for s,r in ans:
+         next_hop = r[IP].src
+         rtt = int( (r.time - s.sent_time) * 1e06 ) # in us
+         if next_hop in next_hops:
+             next_hops[ next_hop ].append( rtt )
+         else:
+             next_hops[ next_hop ] = [rtt]
+         # Type 11 == TTL zero for intermediate hops
+         if r[ICMP].type == 3: # Destination port unreachable, i.e. endpoint
+            rtts = next_hops[ next_hop ]
+            avg_rtt = sum(rtts)/len(rtts)
+            done[ vtep ] = { 'hops': ttl, 'probes': len(rtts), 'avg_rtt_in_ms': 1000 * avg_rtt }
+
      if vtep in results:
         results[vtep][ttl] = next_hops
      else:
         results[vtep] = { ttl: next_hops }
-
-     # ttl_zeros = [ r for s,r in ans if r[ICMP].type == 11 ]
-     dest_unreach = [ r for s,r in ans if r[ICMP].type == 3 ]
-     if dest_unreach != []:
-        last_rtts = [ rtt for ip,rtt in next_hops ]
-        avg_rtt = 1000 * sum(last_rtts)/len(last_rtts) if last_rtts!=[] else 0
-        done[ vtep ] = { 'hops': ttl, 'avg_rtt_in_ms': avg_rtt }
 
 print( json.dumps(results) )
 if DEBUG:

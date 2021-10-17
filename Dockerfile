@@ -1,5 +1,6 @@
 ARG SR_LINUX_RELEASE
-FROM srl/custombase:$SR_LINUX_RELEASE AS final
+# FROM srl/custombase:$SR_LINUX_RELEASE AS final
+FROM srl/auto-config-v2:$SR_LINUX_RELEASE AS final
 
 # Install scapy, netns and graphscii
 RUN sudo pip3 install scapy netns graphscii
