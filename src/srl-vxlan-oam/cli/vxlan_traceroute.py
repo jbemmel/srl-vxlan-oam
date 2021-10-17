@@ -83,11 +83,7 @@ def get_vxlan_interface(state,mac_vrf):
 def do_traceroute(state, input, output, arguments, **_kwargs):
     logging.info( f"do_traceroute arguments={arguments}" )
 
-    # For each uplink interface in default vrf:
-    # 1. Get MAC and peer MAC
-    # 2. Pass MACs to agent config (or open raw socket and send ARP packet here)
-
-    # mac_vrf = arguments.get('mac-vrf')
+    mac_vrf = arguments.get('mac-vrf')
     vtep = arguments.get('vtep')
     entropy = int( arguments.get('entropy') )
     debug = arguments.get('debug')
@@ -122,6 +118,7 @@ def do_traceroute(state, input, output, arguments, **_kwargs):
 
     # Run a separate, simple Python binary in the default namespace
     # Need sudo
-    cmd = f"ip netns exec srbase-default /usr/bin/sudo -E /usr/bin/python3 /opt/demo-agents/srl-vxlan-oam/vxlan_traceroute.py {local_vtep} {entropy} {uplinks} {dest_vteps}"
+    dbg = "debug" if debug else ""
+    cmd = f"ip netns exec srbase-default /usr/bin/sudo -E /usr/bin/python3 /opt/demo-agents/srl-vxlan-oam/vxlan_traceroute.py {local_vtep} {entropy} {uplinks} {dest_vteps} {dbg}"
     logging.info( f"vxlan-traceroute: bash {cmd}" )
     exit_code = child_process.run( cmd.split(), output=output )
