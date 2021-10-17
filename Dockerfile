@@ -1,8 +1,8 @@
 ARG SR_LINUX_RELEASE
 FROM srl/custombase:$SR_LINUX_RELEASE AS final
 
-# Install scapy and netns
-RUN sudo pip3 install scapy netns
+# Install scapy, netns and graphscii
+RUN sudo pip3 install scapy netns graphscii
 
 # Integrate vxlan traceroute CLI command
 COPY src/srl-vxlan-oam/cli/* /opt/srlinux/python/virtual-env/lib/python3.6/site-packages/srlinux/mgmt/cli/plugins/
