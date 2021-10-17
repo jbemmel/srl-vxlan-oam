@@ -50,7 +50,7 @@ with netns.NetNS(nsname="srbase-default"):
     local_mac = get_if_hwaddr(uplink)
     d = int(local_ip[-1])
     peer_ip = local_ip[:-1] + str( (d-1) if (d%2) else (d+1) )
-    peer_mac = getmacbyip(peer_ip)
+    peer_mac = getmacbyip(peer_ip) # "No route" warning
     print( f"Uplink: {uplink} ip={local_ip} mac={local_mac} peer={peer_ip} mac={peer_mac}" )
     uplink_addr[uplink] = { 'src_mac': local_mac, 'dst_mac': peer_mac }
 
@@ -69,36 +69,39 @@ with netns.NetNS(nsname="srbase"):
    macs = uplink_addr[ uplink ]
    l2 = Ether(src=macs['src_mac'],dst=macs['dst_mac'])
    for vtep in VTEP_IPs:
-     # Skip if TTL reached
+     # Skip if reached
      if vtep in done:
          continue
 
-     # Hash entropy is different for different VTEPs
+     # Hash entropy is different for different VTEP dest IPs (assume unique ips)
      l3 = IP(src=LOCAL_VTEP,dst=vtep,ttl=ttl) # can set ID, DF, ToS
 
      # All uplinks go to the same final endpoint, vary the path entropy
      udp_src = 1 + (49999 + u + ENTROPY) % 65534
-     l4 = UDP(sport=udp_src,dport=(IANA_TRACERT_PORT,IANA_TRACERT_PORT+ttl-1))
+     l4 = UDP(sport=udp_src,dport=(IANA_TRACERT_PORT,
+                                   IANA_TRACERT_PORT + min(1,ttl-1) ))
      trace_pkts = l2/l3/l4/"xxx"
      # sendp(tracert_pkts, iface=base_if)
      filter = "(icmp and (icmp[0]=3 or icmp[0]=4 or icmp[0]=5 or icmp[0]=11 or icmp[0]=12))"
      # Need a timeout for intermediate hops, else they don't respond
      ans, unans = srp(trace_pkts, iface=base_if, verbose=True, filter=filter, timeout=1, retry=1)
      print( ans, unans )
-     ans.summary( lambda s,r : r.sprintf("%IP.src% ttl=%IP.ttl%\t{UDP:%UDP.sport%}") )
-     ans.summary( lambda s,r : print( r.show(dump=True) ) )
+     ans.summary( lambda s,r : r.sprintf("%IP.src% ttl=%IP.ttl%\t{ICMP:%ICMP.type%}") )
+     # ans.summary( lambda s,r : print( r.show(dump=True) ) )
      ans.summary( lambda s,r : print( f"sent={s.sent_time} t={s.time} rx={r.time} rtt={(r.time - s.sent_time) * 1000 :.2f}ms" ) )
 
-     rtts = [ (r.time - s.sent_time) for s,r in ans ]
+     next_hops = { r[IP].src: (r.time - s.sent_time) for s,r in ans }
      if vtep in results:
-        results[vtep][ttl] = rtts
+        results[vtep][ttl] = next_hops
      else:
-        results[vtep] = { ttl: rtts }
+        results[vtep] = { ttl: next_hops }
 
-     ttl_zeros = [ r for s,r in ans if r[ICMP].type == 11 ]
-     if ttl_zeros == []:
-        avg_rtt = 1000 * sum(rtts)/len(rtts) if rtts!=[] else 0
+     # ttl_zeros = [ r for s,r in ans if r[ICMP].type == 11 ]
+     dest_unreach = [ r for s,r in ans if r[ICMP].type == 3 ]
+     if dest_unreach != []:
+        avg_rtt = 1000 * next_hops[vtep] if vtep in next_hops else 0
         done[ vtep ] = { 'hops': ttl, 'avg_rtt_in_ms': avg_rtt }
 
+print( results )
 print( done )
 sys.exit(0)
