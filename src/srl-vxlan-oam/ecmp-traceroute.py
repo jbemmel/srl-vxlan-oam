@@ -13,7 +13,7 @@
 # See also: https://0xbharath.github.io/art-of-packet-crafting-with-scapy/network_recon/traceroute/index.html
 #
 
-import socket, sys, re, os, netns, selectors, logging, ipaddress
+import socket, sys, re, os, netns, logging, ipaddress, json
 from datetime import datetime, timezone
 from scapy.layers.inet import IP, UDP, ICMP, traceroute
 from scapy.arch import get_if_addr, get_if_hwaddr
@@ -21,7 +21,7 @@ from scapy.sendrecv import srp # send/recv at Layer2
 from scapy.layers.l2 import getmacbyip, Ether
 
 if len(sys.argv) < 5:
-    print( f"Usage: {sys.argv[0]} <local VTEP IP> <entropy> <list of uplink devices separated by ','> <list of VTEP IPs separated by ','>" )
+    print( f"Usage: {sys.argv[0]} <local VTEP IP> <entropy> <list of uplink devices separated by ','> <list of VTEP IPs separated by ','> [debug]" )
     sys.exit(1)
 
 LOCAL_VTEP = sys.argv[1]
@@ -29,7 +29,8 @@ ENTROPY = int(sys.argv[2])
 UPLINKS = sys.argv[3].split(",")
 VTEP_IPs = sys.argv[4].split(",")
 
-DEBUG = 'DEBUG' in os.environ and bool( os.environ['DEBUG'] )
+DEBUG = ('DEBUG' in os.environ and bool( os.environ['DEBUG'] )
+         or (len(sys.argv)==6 and sys.argv[5]=="debug") )
 SRL_C = os.path.exists('/.dockerenv')
 logging.basicConfig(
   filename='/var/log/srlinux/stdout/ecmp-traceroute.log',
@@ -38,7 +39,8 @@ logging.basicConfig(
   level=logging.DEBUG if DEBUG else logging.INFO)
 
 logging.info( f"Command: {sys.argv}" )
-print( f"Containerized SRL:{SRL_C}" )
+if DEBUG:
+    print( f"Containerized SRL:{SRL_C}" )
 
 # Use scapy
 
@@ -51,7 +53,8 @@ with netns.NetNS(nsname="srbase-default"):
     d = int(local_ip[-1])
     peer_ip = local_ip[:-1] + str( (d-1) if (d%2) else (d+1) )
     peer_mac = getmacbyip(peer_ip) # "No route" warning
-    print( f"Uplink: {uplink} ip={local_ip} mac={local_mac} peer={peer_ip} mac={peer_mac}" )
+    if DEBUG:
+        print( f"Uplink: {uplink} ip={local_ip} mac={local_mac} peer={peer_ip} mac={peer_mac}" )
     uplink_addr[uplink] = { 'src_mac': local_mac, 'dst_mac': peer_mac }
 
 IANA_TRACERT_PORT = 33434
@@ -74,23 +77,30 @@ with netns.NetNS(nsname="srbase"):
          continue
 
      # Hash entropy is different for different VTEP dest IPs (assume unique ips)
-     l3 = IP(src=LOCAL_VTEP,dst=vtep,ttl=ttl) # can set ID, DF, ToS
+     l3 = IP(src=LOCAL_VTEP,dst=vtep,ttl=ttl,flags="DF") # can set ID, ToS
 
      # All uplinks go to the same final endpoint, vary the path entropy
      udp_src = 1 + (49999 + u + ENTROPY) % 65534
+
+     #
+     # Paris-traceroute and Dublin-traceroute manipulate the content/UDP checksum
+     # to overcome certain flaws in Internet routers. Assuming we don't need that
+     # here
+     #
      l4 = UDP(sport=udp_src,dport=(IANA_TRACERT_PORT,
                                    IANA_TRACERT_PORT + min(1,ttl-1) ))
-     trace_pkts = l2/l3/l4/"xxx"
+     trace_pkts = l2/l3/l4/"SRLinux"
      # sendp(tracert_pkts, iface=base_if)
      filter = "(icmp and (icmp[0]=3 or icmp[0]=4 or icmp[0]=5 or icmp[0]=11 or icmp[0]=12))"
      # Need a timeout for intermediate hops, else they don't respond
-     ans, unans = srp(trace_pkts, iface=base_if, verbose=True, filter=filter, timeout=1, retry=1)
-     print( ans, unans )
-     ans.summary( lambda s,r : r.sprintf("%IP.src% ttl=%IP.ttl%\t{ICMP:%ICMP.type%}") )
-     # ans.summary( lambda s,r : print( r.show(dump=True) ) )
-     ans.summary( lambda s,r : print( f"sent={s.sent_time} t={s.time} rx={r.time} rtt={(r.time - s.sent_time) * 1000 :.2f}ms" ) )
+     ans, unans = srp(trace_pkts, iface=base_if, verbose=DEBUG, filter=filter, timeout=1, retry=1)
+     if DEBUG:
+         print( ans, unans )
+         ans.summary( lambda s,r : r.sprintf("%IP.src% ttl=%IP.ttl%\t{ICMP:%ICMP.type%}") )
+         # ans.summary( lambda s,r : print( r.show(dump=True) ) )
+         ans.summary( lambda s,r : print( f"sent={s.sent_time} t={s.time} rx={r.time} rtt={(r.time - s.sent_time) * 1000 :.2f}ms" ) )
 
-     next_hops = { r[IP].src: (r.time - s.sent_time) for s,r in ans }
+     next_hops = [ (r[IP].src, (r.time - s.sent_time)) for s,r in ans ]
      if vtep in results:
         results[vtep][ttl] = next_hops
      else:
@@ -99,9 +109,11 @@ with netns.NetNS(nsname="srbase"):
      # ttl_zeros = [ r for s,r in ans if r[ICMP].type == 11 ]
      dest_unreach = [ r for s,r in ans if r[ICMP].type == 3 ]
      if dest_unreach != []:
-        avg_rtt = 1000 * next_hops[vtep] if vtep in next_hops else 0
+        last_rtts = [ rtt for ip,rtt in next_hops ]
+        avg_rtt = 1000 * sum(last_rtts)/len(last_rtts) if last_rtts!=[] else 0
         done[ vtep ] = { 'hops': ttl, 'avg_rtt_in_ms': avg_rtt }
 
-print( results )
-print( done )
+print( json.dumps(results) )
+if DEBUG:
+    print( done )
 sys.exit(0)
