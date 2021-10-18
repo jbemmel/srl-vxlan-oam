@@ -117,7 +117,7 @@ with netns.NetNS(nsname="srbase"):
             unans.summary( lambda s : print( s.show(dump=True) ) )
          ans.summary( lambda s,r : print( f"sniffed_on={r.sniffed_on} rtt={(r.time - s.sent_time) * 1000 :.2f}ms" ) )
 
-     next_hops = {}
+     next_hops = { 'unanswered': len(unans) }
      reached = False
      for s,r in ans:
          next_hop = r[IP].src
@@ -139,7 +139,8 @@ with netns.NetNS(nsname="srbase"):
         else:
            results[vtep][ttl] = next_hops
      else:
-        results[vtep] = { ttl: next_hops }
+        results[vtep] = { ttl: next_hops, 'unanswered' : 0 }
+     results[vtep]['unanswered'] += len(unans)
 
  # Done
  for s in uplink_socks:
