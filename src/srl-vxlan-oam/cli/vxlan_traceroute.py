@@ -89,7 +89,7 @@ def do_traceroute(state, input, output, arguments, **_kwargs):
     debug = arguments.get('debug')
 
     def get_uplinks():
-       logging.info( f"vxlan-service-ping: Listing all uplinks in 'default' network-instance" )
+       logging.info( f"vxlan-traceroute: Listing all uplinks in 'default' network-instance" )
        # XXX hardcoded assumption it is called 'default'
        path = build_path(f'/network-instance[name=default]/interface[name=e*]')
        data = state.server_data_store.get_data(path, recursive=True)
@@ -119,6 +119,6 @@ def do_traceroute(state, input, output, arguments, **_kwargs):
     # Run a separate, simple Python binary in the default namespace
     # Need sudo
     dbg = "debug" if debug else ""
-    cmd = f"ip netns exec srbase-default /usr/bin/sudo -E /usr/bin/python3 /opt/demo-agents/srl-vxlan-oam/vxlan_traceroute.py {local_vtep} {entropy} {uplinks} {dest_vteps} {dbg}"
+    cmd = f"ip netns exec srbase-default /usr/bin/sudo -E /usr/bin/python3 /opt/demo-agents/srl-vxlan-oam/ecmp-traceroute.py {local_vtep} {entropy} {uplinks} {dest_vteps} {dbg}"
     logging.info( f"vxlan-traceroute: bash {cmd}" )
     exit_code = child_process.run( cmd.split(), output=output )
