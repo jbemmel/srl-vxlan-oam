@@ -86,7 +86,7 @@ def do_traceroute(state, input, output, arguments, **_kwargs):
 
     mac_vrf = arguments.get('mac-vrf')
     vtep = arguments.get('vtep')
-    timeout = int( arguments.get('timeout') )
+    timeout = float( arguments.get('timeout') )
     entropy = int( arguments.get('entropy') )
     debug = arguments.get('debug')
 
