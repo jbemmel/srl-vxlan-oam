@@ -21,17 +21,19 @@ from scapy.layers.l2 import getmacbyip, Ether
 from scapy.interfaces import resolve_iface
 from scapy.data import ETH_P_ALL
 
-if len(sys.argv) < 5:
-    print( f"Usage: {sys.argv[0]} <local VTEP IP> <entropy> <list of uplink devices separated by ','> <list of VTEP IPs separated by ','> [debug]" )
+if len(sys.argv) < 6:
+    print( f"Usage: {sys.argv[0]} <local VTEP IP> <timeout in s> <entropy> <list of uplink devices separated by ','> <list of VTEP IPs separated by ','> [debug]" )
     sys.exit(1)
 
 LOCAL_VTEP = sys.argv[1]
-ENTROPY = int(sys.argv[2])
-UPLINKS = sys.argv[3].split(",")
-VTEP_IPs = sys.argv[4].split(",")
+TIMEOUT = float(sys.argv[2])
+ENTROPY = int(sys.argv[3])
+UPLINKS = sys.argv[4].split(",")
+VTEP_IPs = sys.argv[5].split(",")
 
 DEBUG = ('DEBUG' in os.environ and bool( os.environ['DEBUG'] )
-         or (len(sys.argv)==6 and sys.argv[5]=="debug") )
+         or (len(sys.argv)==7 and sys.argv[6]=="debug") )
+
 SRL_C = os.path.exists('/.dockerenv')
 logging.basicConfig(
   filename='/var/log/srlinux/stdout/ecmp-traceroute.log',
@@ -109,8 +111,8 @@ with netns.NetNS(nsname="srbase"):
      # Add 500ms interval to avoid rate limiting on unlicensed SRL? Slows down everything
      # ans = srp1()
      logging.info( f"Sending {udp_src_hi-udp_src_lo+1} packets to {vtep} TTL={ttl}" )
-     ans, unans = srp(trace_pkts, iface=base_if, verbose=DEBUG, inter=0.5,
-                rcv_pks=uplink_socks,timeout=0.5,retry=1)
+     ans, unans = srp(trace_pkts, iface=base_if, verbose=DEBUG, inter=TIMEOUT,
+                rcv_pks=uplink_socks,timeout=TIMEOUT,retry=1)
      logging.info( f"Got responses: {ans} no answer={unans}" )
      if DEBUG:
          print( f"TTL={ttl} {uplink} VTEP={vtep}: Answers: {ans} missing: {unans}" )
