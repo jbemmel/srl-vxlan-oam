@@ -106,13 +106,15 @@ with netns.NetNS(nsname="srbase"):
      l4 = UDP(sport=(udp_src_lo,udp_src_hi),dport=IANA_TRACERT_PORT)
      trace_pkts = l2/l3/l4/"SRLinux"
 
-     # Can add 500ms interval to avoid rate limiting: inter=0.5
-     ans, unans = srp(trace_pkts, iface=base_if, verbose=DEBUG,
+     # Add 500ms interval to avoid rate limiting on unlicensed SRL
+     ans, unans = srp(trace_pkts, iface=base_if, verbose=DEBUG, inter=0.5,
                       rcv_pks=uplink_socks,timeout=1,retry=1)
      if DEBUG:
          print( f"TTL={ttl} {uplink} VTEP={vtep}: Answers: {ans} missing: {unans}" )
          ans.summary( lambda s,r : r.sprintf("%IP.src% ttl=%IP.ttl%\t{ICMP:%ICMP.type%}") )
-         unans.summary( lambda s : print( s.show(dump=True) ) )
+         if len(unans)>0:
+            print( f"Missing reply(s) on {uplink}:" )
+            unans.summary( lambda s : print( s.show(dump=True) ) )
          ans.summary( lambda s,r : print( f"sniffed_on={r.sniffed_on} rtt={(r.time - s.sent_time) * 1000 :.2f}ms" ) )
 
      next_hops = {}
