@@ -106,9 +106,12 @@ with netns.NetNS(nsname="srbase"):
      l4 = UDP(sport=(udp_src_lo,udp_src_hi),dport=IANA_TRACERT_PORT)
      trace_pkts = l2/l3/l4/"SRLinux"
 
-     # Add 500ms interval to avoid rate limiting on unlicensed SRL
+     # Add 500ms interval to avoid rate limiting on unlicensed SRL? Slows down everything
+     # ans = srp1()
+     logging.info( f"Sending {udp_src_hi-udp_src_lo+1} packets to {vtep} TTL={ttl}" )
      ans, unans = srp(trace_pkts, iface=base_if, verbose=DEBUG, inter=0.5,
-                      rcv_pks=uplink_socks,timeout=1,retry=1)
+                rcv_pks=uplink_socks,timeout=0.5,retry=1)
+     logging.info( f"Got responses: {ans} no answer={unans}" )
      if DEBUG:
          print( f"TTL={ttl} {uplink} VTEP={vtep}: Answers: {ans} missing: {unans}" )
          ans.summary( lambda s,r : r.sprintf("%IP.src% ttl=%IP.ttl%\t{ICMP:%ICMP.type%}") )
