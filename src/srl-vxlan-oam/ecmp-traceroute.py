@@ -46,6 +46,10 @@ logging.info( f"Command: {sys.argv}" )
 if DEBUG:
     print( f"Containerized SRL:{SRL_C}" )
 
+if TIMEOUT<1.0:
+    print( file=sys.stderr, "Many routers rate-limit ICMP replies to 1/sec, minimum interval is 1s" )
+    TIMEOUT = 1.0
+
 # Use scapy
 
 # Needs to run in srbase-default netns, assume caller takes care of that
@@ -78,6 +82,7 @@ for uplink in UPLINKS:
    uplink_socks[ s ] = uplink
 
 ttl_min, ttl_max = map(int, TTL_RANGE.split('-'))
+id = 0
 for ttl in range(ttl_min,ttl_max+1):
   for u,uplink in enumerate(UPLINKS):
    macs = uplink_addr[ uplink ]
@@ -88,7 +93,8 @@ for ttl in range(ttl_min,ttl_max+1):
          continue
 
      # Hash entropy is different for different VTEP dest IPs (assume unique ips)
-     l3 = IP(src=LOCAL_VTEP,dst=vtep,ttl=ttl,flags="DF") # can set ID, ToS
+     id += 1 # Each packet needs unique, reproducable ID
+     l3 = IP(src=LOCAL_VTEP,dst=vtep,ttl=ttl,id=id,flags="DF") # Could set ToS
 
      # All uplinks go to the same final endpoint, vary the path entropy
      # by picking different UDP source ports in the dynamic/private port
@@ -109,8 +115,12 @@ for ttl in range(ttl_min,ttl_max+1):
      # Add 500ms interval to avoid rate limiting on unlicensed SRL? Slows down everything
      # ans = srp1()
      logging.info( f"Sending {udp_src_hi-udp_src_lo+1} packets to {vtep} TTL={ttl}" )
+
+     #
+     # Cannot send too fast, routers rate-limit ICMP responses to 1/sec at most
+     #
      ans, unans = srp(trace_pkts, iface=uplink, verbose=DEBUG, inter=TIMEOUT,
-                rcv_pks=uplink_socks,timeout=3*TIMEOUT,retry=0)
+                rcv_pks=uplink_socks,timeout=2*TIMEOUT,retry=0)
      logging.info( f"Got responses: {ans} no answer={unans}" )
      if DEBUG:
          print( f"TTL={ttl} {uplink} VTEP={vtep}: Answers: {ans} missing: {unans}" )
@@ -120,12 +130,11 @@ for ttl in range(ttl_min,ttl_max+1):
             unans.summary( lambda s : print( s.show(dump=True) ) )
          ans.summary( lambda s,r : print( f"sniffed_on={r.sniffed_on} rtt={(r.time - s.sent_time) * 1000 :.2f}ms" ) )
 
-     next_hops = { 'unanswered': len(unans) }
-     reached = False
+     next_hops = { f'{uplink}-no-reply': len(unans), f'{uplink}-sent': udp_src_hi-udp_src_lo+1 }
      for s,r in ans:
          next_hop = r[IP].src
          rtt = int( (r.time - s.sent_time) * 1e06 ) # in us
-         entry = { r.sniffed_on: rtt }
+         entry = { 'rtt': rtt, 'tx': uplink, 'rx': r.sniffed_on }
          if next_hop in next_hops:
              next_hops[ next_hop ].append( entry )
          else:
@@ -133,17 +142,21 @@ for ttl in range(ttl_min,ttl_max+1):
          # Type 11 == TTL zero for intermediate hops
          if r[ICMP].type == 3: # Destination port unreachable, i.e. endpoint
             rtts = next_hops[ next_hop ]
-            avg_rtt = sum([rtt for e in rtts for rtt in e.values()])/len(rtts)
+            avg_rtt = sum([e['rtt'] for e in rtts ])/len(rtts)
             done[ vtep ] = { 'hops': ttl, 'probes': len(rtts), 'avg_rtt_in_us': avg_rtt }
 
      if vtep in results:
         if ttl in results[vtep]:
-           results[vtep][ttl].update( next_hops )
+           for k,v in next_hops.items():
+              if k in results[vtep][ttl]:
+                 results[vtep][ttl][k].extend( v )
+              else:
+                 results[vtep][ttl][k] = v
         else:
            results[vtep][ttl] = next_hops
      else:
-        results[vtep] = { ttl: next_hops, 'unanswered' : 0 }
-     results[vtep]['unanswered'] += len(unans)
+        results[vtep] = { ttl: next_hops, 'no-reply-total' : { i : 0 for i in UPLINKS } }
+     results[vtep]['no-reply-total'][uplink] += len(unans)
 
 # Done
 for s in uplink_socks:

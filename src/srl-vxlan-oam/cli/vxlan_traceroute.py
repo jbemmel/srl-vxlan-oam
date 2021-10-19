@@ -66,7 +66,7 @@ class Plugin(ToolsPlugin):
            # suggestions=KeyCompleter(path='/tunnel-interface[name=vxlan0]/vxlan-interface[index=0]/bridge-table/multicast-destinations/destination[vtep=*]') )
            suggestions=KeyCompleter(path='/tunnel-interface[name=*]/vxlan-interface[index=*]/bridge-table/multicast-destinations/destination[vtep=*]') )
 
-        syntax.add_named_argument('timeout', default="0.5", help="Timeout and interval between probes, default 500ms")
+        syntax.add_named_argument('timeout', default="1.0", help="Timeout and interval between probes, default 1s (=minimum to avoid ICMP rate limits)")
         syntax.add_named_argument('ttl', default="1-3", help="TTL range to use, default 1-3 (inclusive)")
         syntax.add_named_argument('entropy', default="0", help="Provide extra input to ECMP hashing, added to UDP source port in traceroute probes")
         syntax.add_boolean_argument('debug', help="Enable additional debug output")
