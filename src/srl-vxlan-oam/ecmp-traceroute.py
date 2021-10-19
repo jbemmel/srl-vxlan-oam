@@ -47,7 +47,7 @@ if DEBUG:
     print( f"Containerized SRL:{SRL_C}" )
 
 if TIMEOUT<1.0:
-    print( file=sys.stderr, "Many routers rate-limit ICMP replies to 1/sec, minimum interval is 1s" )
+    print( "Many routers rate-limit ICMP replies to 1/sec, minimum interval is 1s", file=sys.stderr )
     TIMEOUT = 1.0
 
 # Use scapy
