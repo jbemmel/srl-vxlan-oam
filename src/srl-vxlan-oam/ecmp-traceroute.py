@@ -21,18 +21,19 @@ from scapy.layers.l2 import getmacbyip, Ether
 from scapy.interfaces import resolve_iface
 from scapy.data import ETH_P_ALL
 
-if len(sys.argv) < 6:
-    print( f"Usage: {sys.argv[0]} <local VTEP IP> <timeout in s> <entropy> <list of uplink devices separated by ','> <list of VTEP IPs separated by ','> [debug]" )
+if len(sys.argv) < 7:
+    print( f"Usage: {sys.argv[0]} <local VTEP IP> <ttl range> <timeout(s)> <entropy> <list of uplink devices separated by ','> <list of VTEP IPs separated by ','> [debug]" )
     sys.exit(1)
 
 LOCAL_VTEP = sys.argv[1]
-TIMEOUT = float(sys.argv[2])
-ENTROPY = int(sys.argv[3])
-UPLINKS = sys.argv[4].split(",")
-VTEP_IPs = sys.argv[5].split(",")
+TTL_RANGE = sys.argv[2] # e.g. 1-3, inclusive
+TIMEOUT = float(sys.argv[3])
+ENTROPY = int(sys.argv[4])
+UPLINKS = sys.argv[5].split(",")
+VTEP_IPs = sys.argv[6].split(",")
 
 DEBUG = ('DEBUG' in os.environ and bool( os.environ['DEBUG'] )
-         or (len(sys.argv)==7 and sys.argv[6]=="debug") )
+         or (len(sys.argv)==8 and sys.argv[7]=="debug") )
 
 SRL_C = os.path.exists('/.dockerenv')
 logging.basicConfig(
@@ -76,7 +77,8 @@ for uplink in UPLINKS:
    s = iface.l2socket()(iface=iface,filter=filter,type=ETH_P_ALL)
    uplink_socks[ s ] = uplink
 
-for ttl in range(1,5):
+ttl_min, ttl_max = map(int, TTL_RANGE.split('-'))
+for ttl in range(ttl_min,ttl_max+1):
   for u,uplink in enumerate(UPLINKS):
    macs = uplink_addr[ uplink ]
    l2 = Ether(src=macs['src_mac'],dst=macs['dst_mac'])

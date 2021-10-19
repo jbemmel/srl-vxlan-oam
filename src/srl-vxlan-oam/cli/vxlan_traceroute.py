@@ -67,6 +67,7 @@ class Plugin(ToolsPlugin):
            suggestions=KeyCompleter(path='/tunnel-interface[name=*]/vxlan-interface[index=*]/bridge-table/multicast-destinations/destination[vtep=*]') )
 
         syntax.add_named_argument('timeout', default="0.5", help="Timeout and interval between probes, default 500ms")
+        syntax.add_named_argument('ttl', default="1-3", help="TTL range to use, default 1-3 (inclusive)")
         syntax.add_named_argument('entropy', default="0", help="Provide extra input to ECMP hashing, added to UDP source port in traceroute probes")
         syntax.add_boolean_argument('debug', help="Enable additional debug output")
 
@@ -86,6 +87,7 @@ def do_traceroute(state, input, output, arguments, **_kwargs):
 
     mac_vrf = arguments.get('mac-vrf')
     vtep = arguments.get('vtep')
+    ttl = arguments.get('ttl')
     timeout = float( arguments.get('timeout') )
     entropy = int( arguments.get('entropy') )
     debug = arguments.get('debug')
@@ -121,7 +123,7 @@ def do_traceroute(state, input, output, arguments, **_kwargs):
     # Run a separate, simple Python binary in the default namespace
     # Need sudo
     dbg = "debug" if debug else ""
-    cmd = f"ip netns exec srbase-default /usr/bin/sudo -E /usr/bin/python3 /opt/demo-agents/srl-vxlan-oam/ecmp-traceroute.py {local_vtep} {timeout} {entropy} {uplinks} {dest_vteps} {dbg}"
+    cmd = f"ip netns exec srbase-default /usr/bin/sudo -E /usr/bin/python3 /opt/demo-agents/srl-vxlan-oam/ecmp-traceroute.py {local_vtep} {ttl} {timeout} {entropy} {uplinks} {dest_vteps} {dbg}"
     logging.info( f"vxlan-traceroute: {cmd}" )
     exit_code = child_process.run( cmd.split(), output=output )
     logging.info( f"vxlan-traceroute: exitcode {exit_code}" )
