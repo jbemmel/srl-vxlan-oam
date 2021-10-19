@@ -112,7 +112,7 @@ with netns.NetNS(nsname="srbase"):
      # ans = srp1()
      logging.info( f"Sending {udp_src_hi-udp_src_lo+1} packets to {vtep} TTL={ttl}" )
      ans, unans = srp(trace_pkts, iface=base_if, verbose=DEBUG, inter=TIMEOUT,
-                rcv_pks=uplink_socks,timeout=TIMEOUT,retry=1)
+                rcv_pks=uplink_socks,timeout=3*TIMEOUT,retry=1)
      logging.info( f"Got responses: {ans} no answer={unans}" )
      if DEBUG:
          print( f"TTL={ttl} {uplink} VTEP={vtep}: Answers: {ans} missing: {unans}" )
