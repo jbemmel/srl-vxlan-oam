@@ -27,7 +27,7 @@ if len(sys.argv) < 7:
 
 LOCAL_VTEP = sys.argv[1]
 TTL_RANGE = sys.argv[2] # e.g. 1-3, inclusive
-TIMEOUT = float(sys.argv[3])
+TIMEOUT = sys.argv[3]
 ENTROPY = int(sys.argv[4])
 UPLINKS = sys.argv[5].split(",")
 VTEP_IPs = sys.argv[6].split(",")
@@ -42,7 +42,18 @@ logging.basicConfig(
   datefmt='%H:%M:%S',
   level=logging.DEBUG if DEBUG else logging.INFO)
 
-logging.info( f"Command: {sys.argv}" )
+if TIMEOUT=="auto":
+    with open('/proc/sys/net/ipv4/icmp_ratemask','r') as icmp_ratemask:
+        ratemask = int( icmp_ratemask.read_lines()[0] )
+    if (ratemask & 2048) != 0: # Affects TTL=0 errors?
+      with open('/proc/sys/net/ipv4/icmp_ratelimit','r') as icmp_ratelimit: # ms
+        TIMEOUT = int( icmp_ratelimit.read_lines()[0] ) / 1000.0
+    else:
+        TIMEOUT = 0.1 # Default 100ms when not ratelimited
+else:
+    TIMEOUT = float(TIMEOUT)
+
+logging.info( f"Command: {sys.argv} TIMEOUT={TIMEOUT}" )
 if DEBUG:
     print( f"Containerized SRL:{SRL_C}" )
 

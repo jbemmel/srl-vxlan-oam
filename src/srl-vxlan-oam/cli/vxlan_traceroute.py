@@ -66,7 +66,7 @@ class Plugin(ToolsPlugin):
            # suggestions=KeyCompleter(path='/tunnel-interface[name=vxlan0]/vxlan-interface[index=0]/bridge-table/multicast-destinations/destination[vtep=*]') )
            suggestions=KeyCompleter(path='/tunnel-interface[name=*]/vxlan-interface[index=*]/bridge-table/multicast-destinations/destination[vtep=*]') )
 
-        syntax.add_named_argument('timeout', default="1.0", help="Timeout and interval between probes, default 1s (=minimum to avoid ICMP rate limits)")
+        syntax.add_named_argument('timeout', default="auto", help="Timeout and interval between probes, default auto (= minimum to avoid ICMP rate limits)")
         syntax.add_named_argument('ttl', default="1-3", help="TTL range to use, default 1-3 (inclusive)")
         syntax.add_named_argument('entropy', default="0", help="Provide extra input to ECMP hashing, added to UDP source port in traceroute probes")
         syntax.add_boolean_argument('debug', help="Enable additional debug output")
@@ -88,7 +88,7 @@ def do_traceroute(state, input, output, arguments, **_kwargs):
     mac_vrf = arguments.get('mac-vrf')
     vtep = arguments.get('vtep')
     ttl = arguments.get('ttl')
-    timeout = float( arguments.get('timeout') )
+    timeout = arguments.get('timeout')
     entropy = int( arguments.get('entropy') )
     debug = arguments.get('debug')
 

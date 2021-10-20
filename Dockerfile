@@ -20,6 +20,9 @@ COPY ./src /opt/demo-agents/
 # run pylint to catch any obvious errors
 RUN PYTHONPATH=$AGENT_PYTHONPATH pylint --load-plugins=pylint_protobuf -E /opt/demo-agents/srl-vxlan-oam
 
+# Exclude TTL=0 errors from ICMP rate limiting
+COPY 50_jvb_disable_icmp_ttl0_rate_limit.sh /opt/srlinux/bin/bootscript/
+
 # Using a build arg to set the release tag, set a default for running docker build manually
 ARG SRL_VXLAN_OAM_RELEASE="[custom build]"
 ENV SRL_VXLAN_OAM_RELEASE=$SRL_VXLAN_OAM_RELEASE
