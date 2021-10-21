@@ -97,7 +97,7 @@ uplink_socks = {}
 # with netns.NetNS(nsname="srbase"):
 filter = "(icmp and (icmp[0]=3 or icmp[0]=4 or icmp[0]=5 or icmp[0]=11 or icmp[0]=12))"
 for uplink in UPLINKS:
-   iface = resolve_iface( uplink.split('.')[0] ) # Remove ".x" subinterface
+   iface = resolve_iface( uplink ) # Remove ".x" subinterface: .split('.')[0]
    s = iface.l2socket()(iface=iface,filter=filter,type=ETH_P_ALL)
    uplink_socks[ s ] = uplink
 
