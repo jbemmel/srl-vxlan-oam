@@ -13,7 +13,7 @@
 # See also: https://0xbharath.github.io/art-of-packet-crafting-with-scapy/network_recon/traceroute/index.html
 #
 
-import sys, os, logging, ipaddress, json
+import sys, os, logging, ipaddress, json # netns
 from scapy.layers.inet import IP, UDP, ICMP, traceroute
 from scapy.arch import get_if_addr, get_if_hwaddr
 from scapy.sendrecv import srp # send/recv at Layer2
@@ -22,12 +22,12 @@ from scapy.interfaces import resolve_iface
 from scapy.data import ETH_P_ALL
 
 if len(sys.argv) < 7:
-    print( f"Usage: {sys.argv[0]} <local VTEP IP> <ttl range> <timeout(s)> <entropy> <list of uplink devices separated by ','> <list of VTEP IPs separated by ','> [debug]" )
+    print( f"Usage: {sys.argv[0]} <local VTEP IP[/prefix]> <ttl range> <timeout(s)> <entropy> <list of uplink devices separated by ','> <list of VTEP IPs separated by ','> [debug]" )
     sys.exit(1)
 
 LOCAL_VTEP = sys.argv[1]
 TTL_RANGE = sys.argv[2] # e.g. 1-3, inclusive
-TIMEOUT = sys.argv[3]
+TIMEOUT_IN = sys.argv[3]
 ENTROPY = int(sys.argv[4])
 UPLINKS = sys.argv[5].split(",")
 VTEP_IPs = sys.argv[6].split(",")
@@ -42,24 +42,30 @@ logging.basicConfig(
   datefmt='%H:%M:%S',
   level=logging.DEBUG if DEBUG else logging.INFO)
 
-if TIMEOUT=="auto":
-    with open('/proc/sys/net/ipv4/icmp_ratemask','r') as icmp_ratemask:
-        ratemask = int( icmp_ratemask.read_lines()[0] )
-    if (ratemask & 2048) != 0: # Affects TTL=0 errors?
-      with open('/proc/sys/net/ipv4/icmp_ratelimit','r') as icmp_ratelimit: # ms
-        TIMEOUT = int( icmp_ratelimit.read_lines()[0] ) / 1000.0
-    else:
-        TIMEOUT = 0.1 # Default 100ms when not ratelimited
+if '/' in LOCAL_VTEP:
+    src_ips = [str(ip) for ip in ipaddress.IPv4Network(LOCAL_VTEP,strict=False)]
 else:
-    TIMEOUT = float(TIMEOUT)
+    src_ips = [ LOCAL_VTEP ]
+
+if TIMEOUT_IN=="auto":
+    # with open('/proc/sys/net/ipv4/icmp_ratemask','r') as icmp_ratemask:
+    #     ratemask = int( icmp_ratemask.read() )
+    # if (ratemask & 2048) != 0: # Affects TTL=0 errors?
+    #   with open('/proc/sys/net/ipv4/icmp_ratelimit','r') as icmp_ratelimit: # ms
+    #     TIMEOUT = int( icmp_ratelimit.read() ) / 1000.0
+    # else:
+    #     print( "Using auto-selected 1s interval between packets", file=sys.stderr )
+    TIMEOUT = 1.0 # Default 1pps
+else:
+    TIMEOUT = float(TIMEOUT_IN)
 
 logging.info( f"Command: {sys.argv} TIMEOUT={TIMEOUT}" )
 if DEBUG:
     print( f"Containerized SRL:{SRL_C}" )
 
 if TIMEOUT<1.0:
-    print( "Many routers rate-limit ICMP replies to 1/sec, minimum interval is 1s", file=sys.stderr )
-    TIMEOUT = 1.0
+    print( f"Many routers rate-limit ICMP replies to 1/sec, consider increasing {TIMEOUT} to minimum interval=1s (or 'auto') to avoid", file=sys.stderr )
+    # TIMEOUT = 1.0
 
 # Use scapy
 
@@ -85,10 +91,13 @@ results = {} # Indexed by VTEP
 done = {}
 
 # Need to listen for ICMP replies on every uplink
+# When using source IPs that are not provisioned on interfaces, need to listen
+# in 'srbase' NetNS
 uplink_socks = {}
+# with netns.NetNS(nsname="srbase"):
 filter = "(icmp and (icmp[0]=3 or icmp[0]=4 or icmp[0]=5 or icmp[0]=11 or icmp[0]=12))"
 for uplink in UPLINKS:
-   iface = resolve_iface( uplink )
+   iface = resolve_iface( uplink.split('.')[0] ) # Remove ".x" subinterface
    s = iface.l2socket()(iface=iface,filter=filter,type=ETH_P_ALL)
    uplink_socks[ s ] = uplink
 
@@ -105,7 +114,10 @@ for ttl in range(ttl_min,ttl_max+1):
 
      # Hash entropy is different for different VTEP dest IPs (assume unique ips)
      id += 1 # Each packet needs unique, reproducable ID
-     l3 = IP(src=LOCAL_VTEP,dst=vtep,ttl=ttl,id=id,flags="DF") # Could set ToS
+
+     # Vary source IPs too, if available
+     src_ip = src_ips[ id % len(src_ips) ]
+     l3 = IP(src=src_ip,dst=vtep,ttl=ttl,id=id,flags="DF") # Could set ToS
 
      # All uplinks go to the same final endpoint, vary the path entropy
      # by picking different UDP source ports in the dynamic/private port
@@ -129,6 +141,7 @@ for ttl in range(ttl_min,ttl_max+1):
 
      #
      # Cannot send too fast, routers rate-limit ICMP responses to 1/sec at most
+     # (per source IP)
      #
      ans, unans = srp(trace_pkts, iface=uplink, verbose=DEBUG, inter=TIMEOUT,
                 rcv_pks=uplink_socks,timeout=2*TIMEOUT,retry=0)

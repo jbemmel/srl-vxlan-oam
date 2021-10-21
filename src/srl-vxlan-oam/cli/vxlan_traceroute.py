@@ -103,7 +103,9 @@ def do_traceroute(state, input, output, arguments, **_kwargs):
     def get_system0_vtep_ip():
        path = build_path('/interface[name=system0]/subinterface[index=0]/ipv4/address')
        data = state.server_data_store.get_data(path, recursive=True)
-       return data.interface.get().subinterface.get().ipv4.get().address.get().ip_prefix.split('/')[0]
+       for a in data.interface.get().subinterface.get().ipv4.get().address.items():
+           logging.info( f"system0 IP: {a.ip_prefix}" ) # Only allows 1 IP
+       return data.interface.get().subinterface.get().ipv4.get().address.get().ip_prefix # .split('/')[0]
 
     # Need to access State
     def get_evpn_vteps(vxlan_intf):
@@ -116,7 +118,7 @@ def do_traceroute(state, input, output, arguments, **_kwargs):
        return [ p.vtep for p in data.tunnel_interface.get().vxlan_interface.get().bridge_table.get().multicast_destinations.get().destination.items() ]
 
     vxlan_intf = get_vxlan_interface(state,mac_vrf)
-    local_vtep = get_system0_vtep_ip()
+    local_vtep = get_system0_vtep_ip() # ip/prefix
     uplinks = ",".join( get_uplinks() )
     dest_vteps = vtep if vtep!='*' else ",".join( get_evpn_vteps(vxlan_intf) )
 
